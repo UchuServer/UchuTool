@@ -6,8 +6,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Runtime.InteropServices;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+using Newtonsoft.Json;
 
 namespace Uchu.Tool.Action
 {
@@ -109,7 +108,7 @@ namespace Uchu.Tool.Action
             }
             
             // Parse the JSON response and return the first entry.
-            var releases = JsonSerializer.Deserialize<List<GithubRelease>>(stringResponse);
+            var releases = JsonConvert.DeserializeObject<List<GithubRelease>>(stringResponse);
             return releases != null && releases.Count > 0 ? releases[0] : null;
         }
 
@@ -118,7 +117,7 @@ namespace Uchu.Tool.Action
         /// </summary>
         private CurrentReleaseData GetCurrentRelease()
         {
-            return File.Exists(this.CurrentReleaseFile) ? JsonSerializer.Deserialize<CurrentReleaseData>(File.ReadAllText(this.CurrentReleaseFile)) : null;
+            return File.Exists(this.CurrentReleaseFile) ? JsonConvert.DeserializeObject<CurrentReleaseData>(File.ReadAllText(this.CurrentReleaseFile)) : null;
         }
 
         /// <summary>
@@ -242,7 +241,7 @@ namespace Uchu.Tool.Action
             this.CopyDirectory(extractedDirectory, this.UchuDirectory);
             
             // Store the downloaded release.
-            File.WriteAllText(this.CurrentReleaseFile, JsonSerializer.Serialize(new CurrentReleaseData()
+            File.WriteAllText(this.CurrentReleaseFile, JsonConvert.SerializeObject(new CurrentReleaseData()
             {
                 ReleaseDisplayName = release.name,
                 ReleaseTagName = release.tag_name,

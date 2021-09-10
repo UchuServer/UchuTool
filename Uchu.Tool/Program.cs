@@ -31,7 +31,7 @@ namespace Uchu.Tool
                     "--no-run",
                     "Ignores running Uchu. Intended to be used when only updating the release."),
             };
-            rootCommand.Name = "Uchu Tool";
+            rootCommand.Name = "Uchu.Tool";
             rootCommand.Description = "Tool for assisting with downloading Uchu releases and running them.";
 
             // Set up the handler.
@@ -39,14 +39,16 @@ namespace Uchu.Tool
             {
                 // Check for Nexus LU Launcher.
                 // If any update option flag is specified, this is not checked.
+                var checkLauncher = new CheckNexusLULauncher();
                 if (!update && !noUpdate)
                 {
                     // Return if the check failed and the user aborted.
-                    if (new CheckNexusLULauncher().CheckForClient())
+                    if (checkLauncher.CheckForClient())
                     {
                         return -1;
                     }
                 }
+                checkLauncher.AddLocalHost();
                 
                 // Check the release.
                 var updateAction = new Update(directory);

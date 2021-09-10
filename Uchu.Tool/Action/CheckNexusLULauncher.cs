@@ -1,11 +1,39 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using Newtonsoft.Json;
 
 namespace Uchu.Tool.Action
 {
+    internal class ServerEntry
+    {
+        /// <summary>
+        /// Display name of the server in the launcher.
+        /// </summary>
+        public string ServerName;
+            
+        /// <summary>
+        /// Server address of the server in the launcher.
+        /// </summary>
+        public string ServerAddress;
+    }
+    
+    internal class LauncherSettings
+    {
+        /// <summary>
+        /// Servers stored in the launcher.
+        /// </summary>
+        public List<ServerEntry> Servers { get; set; } = new List<ServerEntry>();
+            
+        /// <summary>
+        /// Selected server for the launcher.
+        /// </summary>
+        public string SelectedServer { get; set; }
+    }
+    
     public class CheckNexusLULauncher
     {
         /// <summary>
@@ -63,7 +91,7 @@ namespace Uchu.Tool.Action
                 return RequestConfirmation(NotRanMessage);
 
             // Get path to NLUL config file and request confirmation if it doesn't exist.
-            // Even with older releases, (V.0.2.0 and older), the file shoudl exist.
+            // Even with older releases, (V.0.2.0 and older), the file should exist.
             var launcherFileLocation = Path.Combine(nlulHomeLocation, "launcher.json");
             if (!File.Exists(launcherFileLocation))
                 return RequestConfirmation(NotRanMessage);
@@ -95,6 +123,44 @@ namespace Uchu.Tool.Action
             
             // Confirm that no unpacked client exists.
             return RequestConfirmation(NoUnpackedClientMessage);
+        }
+
+        /// <summary>
+        /// Adds local host to the launcher if it doesn't exist already.
+        /// </summary>
+        public void AddLocalHost()
+        {
+            // Return if the launcher file doesn't exist.
+            var launcherFileLocation = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nlul", "launcher.json");
+            if (!File.Exists(launcherFileLocation))
+            {
+                return;
+            }
+            
+            // Return if a localhost or 127.0.0.1 server exists.
+            var launcherSettings = JsonConvert.DeserializeObject<LauncherSettings>(File.ReadAllText(launcherFileLocation));
+            if (launcherSettings == null) return;
+            if (launcherSettings.Servers.Any(entry => entry.ServerAddress.ToLower().Contains("localhost") ||
+                                                      entry.ServerAddress.ToLower().Contains("127.0.0.1")))
+            {
+                return;
+            }
+            
+            // Add a localhost entry.
+            launcherSettings.Servers.Add(new ServerEntry()
+            {
+                ServerName = "Local Server",
+                ServerAddress = "localhost",
+            });
+            
+            // Select the server if none is selected.
+            if (launcherSettings.SelectedServer == null)
+            {
+                launcherSettings.SelectedServer = "Local Server";
+            }
+            
+            // Save the launcher settings.
+            File.WriteAllText(launcherFileLocation, JsonConvert.SerializeObject(launcherSettings, Formatting.Indented));
         }
     }
 }
