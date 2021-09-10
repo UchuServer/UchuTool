@@ -27,6 +27,13 @@ After this, you are ready to open LEGO Universe and play!
 ## Command Line Arguments
 For power users, Uchu Tool offers a few extra command line arguments.
 
+### --directory
+```bash
+uchutool --directory location
+```
+
+Changes the directory to download and run Uchu from.
+
 ### --update
 ```bash
 uchutool --update
