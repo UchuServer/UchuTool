@@ -6,7 +6,6 @@
       <PublishSingleFile>true</PublishSingleFile>
       <SelfContained>true</SelfContained>
       <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
-      <PublishReadyToRun>true</PublishReadyToRun>
       <RuntimeIdentifier>win-x64</RuntimeIdentifier>
       <ApplicationIcon>uchu.ico</ApplicationIcon>
     </PropertyGroup>
