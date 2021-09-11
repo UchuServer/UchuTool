@@ -34,6 +34,8 @@ def cleanDirectory(directory):
 # Display a warning for Windows runs.
 if os.name == "nt":
     sys.stderr.write("Windows was detected. Linux and macOS binaries will be missing the permissions to run.\n")
+else:
+    sys.stderr.write("Windows was not detected. Windows binaries will not have an icon with the executable.\n")
 
 # Create the directory.
 if os.path.exists("bin"):
