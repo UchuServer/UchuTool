@@ -1,39 +1,13 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Uchu.Tool.Action
 {
-    internal class ServerEntry
-    {
-        /// <summary>
-        /// Display name of the server in the launcher.
-        /// </summary>
-        public string ServerName;
-            
-        /// <summary>
-        /// Server address of the server in the launcher.
-        /// </summary>
-        public string ServerAddress;
-    }
-    
-    internal class LauncherSettings
-    {
-        /// <summary>
-        /// Servers stored in the launcher.
-        /// </summary>
-        public List<ServerEntry> Servers { get; set; } = new List<ServerEntry>();
-            
-        /// <summary>
-        /// Selected server for the launcher.
-        /// </summary>
-        public string SelectedServer { get; set; }
-    }
-    
     public class CheckNexusLULauncher
     {
         /// <summary>
@@ -136,31 +110,41 @@ namespace Uchu.Tool.Action
             {
                 return;
             }
-            
-            // Return if a localhost or 127.0.0.1 server exists.
-            var launcherSettings = JsonConvert.DeserializeObject<LauncherSettings>(File.ReadAllText(launcherFileLocation));
-            if (launcherSettings == null) return;
-            if (launcherSettings.Servers.Any(entry => entry.ServerAddress.ToLower().Contains("localhost") ||
-                                                      entry.ServerAddress.ToLower().Contains("127.0.0.1")))
+
+            // Parse launcher settings.
+            var launcherSettings = JObject.Parse(File.ReadAllText(launcherFileLocation));
+
+            // Check if a localhost server is configured.
+            var existingLocalhostEntry = (launcherSettings.GetValue("Servers") as JArray)?
+                .FirstOrDefault(server =>
+                    (server as JObject)?.GetValue("ServerAddress")?.ToString() is "localhost" or "127.0.0.1");
+
+            // If no localhost entry exists, create one.
+            if (existingLocalhostEntry == null)
             {
-                return;
+                // If server list exists, append to it.
+                var serverList = launcherSettings["Servers"] as JArray ?? new JArray();
+
+                // Create localhost entry.
+                var localhostEntry = new JObject
+                {
+                    ["ServerName"] = "Local Server",
+                    ["ServerAddress"] = "localhost",
+                };
+                serverList.Add(localhostEntry);
+
+                // Save server list.
+                launcherSettings["Servers"] = serverList;
             }
-            
-            // Add a localhost entry.
-            launcherSettings.Servers.Add(new ServerEntry()
+
+            // Select the localhost server if none is selected.
+            if (launcherSettings.Value<string>("SelectedServer") == null)
             {
-                ServerName = "Local Server",
-                ServerAddress = "localhost",
-            });
-            
-            // Select the server if none is selected.
-            if (launcherSettings.SelectedServer == null)
-            {
-                launcherSettings.SelectedServer = "Local Server";
+                launcherSettings["SelectedServer"] = "Local Server";
             }
-            
+
             // Save the launcher settings.
-            File.WriteAllText(launcherFileLocation, JsonConvert.SerializeObject(launcherSettings, Formatting.Indented));
+            File.WriteAllText(launcherFileLocation, launcherSettings.ToString(Formatting.Indented));
         }
     }
 }
