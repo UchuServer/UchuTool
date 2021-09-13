@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 
 namespace Uchu.Tool.Action
@@ -160,7 +161,7 @@ namespace Uchu.Tool.Action
         /// Checks the latest release and downloads it if confirmed.
         /// </summary>
         /// <param name="autoConfirm">Whether to auto-confirm the release.</param>
-        public void CheckLatestRelease(bool autoConfirm = false)
+        public async Task CheckLatestRelease(bool autoConfirm = false)
         {
             // Get the latest release.
             var release = GetLatestRelease();
@@ -218,44 +219,79 @@ namespace Uchu.Tool.Action
             {
                 File.Delete(this.DownloadLocation);
             }
-            var client = new WebClient();
-            client.DownloadFile(downloadAsset.browser_download_url, this.DownloadLocation);
-            
-            // Extract the ZIP.
-            Console.WriteLine("Extracting release.");
-            if (Directory.Exists(this.ExtractLocation))
+
+            var tcs = new TaskCompletionSource();
+
+            WebClient client = new WebClient();
+
+            client.DownloadProgressChanged += (_, e) =>
             {
-                Directory.Delete(this.ExtractLocation, true);
-            }
-            ZipFile.ExtractToDirectory(this.DownloadLocation, this.ExtractLocation);
-            
-            // Determine the directory to copy from.
-            var extractedDirectory = this.ExtractLocation;
-            while (Directory.GetFiles(extractedDirectory).Length == 0 && Directory.GetDirectories(extractedDirectory).Length == 1)
+                // Set cursor to start of line.
+                Console.CursorLeft = 0;
+
+                // Progress bar looks like this:
+                //  72% (36 / 50 MB) [#######################         ]
+                var percentage = e.ProgressPercentage.ToString().PadLeft(3);
+                var megabytesToReceive = ((int) (e.TotalBytesToReceive / 1e6)).ToString();
+                var megabytesReceived = ((int) (e.BytesReceived / 1e6)).ToString();
+
+                // Calculate amount of #s to write.
+                var maxWidth = Console.BufferWidth - 16 - megabytesToReceive.Length * 2;
+                var progressCharacters = (int) (e.ProgressPercentage / 100f * maxWidth);
+
+                var megabytes = $"({megabytesReceived} / {megabytesToReceive} MB) {new string(' ', megabytesToReceive.Length - megabytesReceived.Length)}";
+                Console.Write($"\r{percentage}% {megabytes}[{new string('#', progressCharacters)}{new string(' ', maxWidth - progressCharacters)}]");
+
+                // Start the next Console.WriteLine on a new line
+                if (percentage == "100")
+                    Console.Write("\n");
+            };
+            client.DownloadFileCompleted += (_, _) =>
             {
-                extractedDirectory = Directory.GetDirectories(extractedDirectory)[0];
-            }
-            
-            // Copy the files.
-            Console.WriteLine("Copying release files.");
-            this.CopyDirectory(extractedDirectory, this.UchuDirectory);
-            
-            // Store the downloaded release.
-            File.WriteAllText(this.CurrentReleaseFile, JsonConvert.SerializeObject(new CurrentReleaseData()
-            {
-                ReleaseDisplayName = release.name,
-                ReleaseTagName = release.tag_name,
-            }));
-            
-            // Clear the files.
-            if (File.Exists(this.DownloadLocation))
-            {
-                File.Delete(this.DownloadLocation);
-            }
-            if (Directory.Exists(this.ExtractLocation))
-            {
-                Directory.Delete(this.ExtractLocation, true);
-            }
+                // Extract the ZIP.
+                Console.WriteLine("Extracting release.");
+                if (Directory.Exists(this.ExtractLocation))
+                {
+                    Directory.Delete(this.ExtractLocation, true);
+                }
+                ZipFile.ExtractToDirectory(this.DownloadLocation, this.ExtractLocation);
+
+                // Determine the directory to copy from.
+                var extractedDirectory = this.ExtractLocation;
+                while (Directory.GetFiles(extractedDirectory).Length == 0 && Directory.GetDirectories(extractedDirectory).Length == 1)
+                {
+                    extractedDirectory = Directory.GetDirectories(extractedDirectory)[0];
+                }
+
+                // Copy the files.
+                Console.WriteLine("Copying release files.");
+                this.CopyDirectory(extractedDirectory, this.UchuDirectory);
+
+                // Store the downloaded release.
+                File.WriteAllText(this.CurrentReleaseFile, JsonConvert.SerializeObject(new CurrentReleaseData()
+                {
+                    ReleaseDisplayName = release.name,
+                    ReleaseTagName = release.tag_name,
+                }));
+
+                // Clear the files.
+                if (File.Exists(this.DownloadLocation))
+                {
+                    File.Delete(this.DownloadLocation);
+                }
+                if (Directory.Exists(this.ExtractLocation))
+                {
+                    Directory.Delete(this.ExtractLocation, true);
+                }
+
+                tcs.TrySetResult();
+            };
+
+            // Start the download.
+            client.DownloadFileAsync(new Uri(downloadAsset.browser_download_url), this.DownloadLocation);
+
+            // Return when the download process is complete.
+            await tcs.Task;
         }
     }
 }

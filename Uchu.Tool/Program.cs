@@ -35,7 +35,7 @@ namespace Uchu.Tool
             rootCommand.Description = "Tool for assisting with downloading Uchu releases and running them.";
 
             // Set up the handler.
-            rootCommand.Handler = CommandHandler.Create<string, bool, bool, bool>((directory, update, noUpdate, noRun) =>
+            rootCommand.Handler = CommandHandler.Create<string, bool, bool, bool>(async (directory, update, noUpdate, noRun) =>
             {
                 // Check for Nexus LU Launcher.
                 // If any update option flag is specified, this is not checked.
@@ -55,7 +55,7 @@ namespace Uchu.Tool
                 if (!noUpdate || !File.Exists(updateAction.CurrentReleaseFile))
                 {
                     Console.WriteLine("Checking the latest release.");
-                    updateAction.CheckLatestRelease(update);
+                    await updateAction.CheckLatestRelease(update);
                 }
                 
                 // Run the Uchu server.
