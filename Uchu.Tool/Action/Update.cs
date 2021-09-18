@@ -7,6 +7,7 @@ using System.Net;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using Mono.Unix;
 using Newtonsoft.Json;
 
 namespace Uchu.Tool.Action
@@ -221,9 +222,7 @@ namespace Uchu.Tool.Action
             }
 
             var tcs = new TaskCompletionSource();
-
-            WebClient client = new WebClient();
-
+            var client = new WebClient();
             client.DownloadProgressChanged += (_, e) =>
             {
                 // Set cursor to start of line.
@@ -255,6 +254,23 @@ namespace Uchu.Tool.Action
                     Directory.Delete(this.ExtractLocation, true);
                 }
                 ZipFile.ExtractToDirectory(this.DownloadLocation, this.ExtractLocation);
+                
+                // Set the file permissions. ZipFile.ExtractToDirectory does not do this by default.
+                if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    using var archive = ZipFile.Open(this.DownloadLocation, ZipArchiveMode.Read);
+                    foreach (var entry in archive.Entries)
+                    {
+                        // Get the file path and return if it is a directory.
+                        var fileName = Path.Combine(ExtractLocation, entry.FullName);
+                        if (!File.Exists(fileName)) continue;
+                        
+                        // Convert the ZIP file permissions to Unix file permissions and set them in the file.
+                        var filePermissions = (entry.ExternalAttributes >> 16) & 0x1FF;
+                        var fileInfo = new UnixFileInfo(fileName);
+                        fileInfo.FileAccessPermissions = (FileAccessPermissions) filePermissions;
+                    }
+                }
 
                 // Determine the directory to copy from.
                 var extractedDirectory = this.ExtractLocation;
